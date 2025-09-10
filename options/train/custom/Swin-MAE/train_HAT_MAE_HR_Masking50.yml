@@ -1,0 +1,115 @@
+# GENERATE TIME: Tue Aug 26 15:25:02 2025
+# CMD:
+# /workspace/HAT/hat/train.py -opt options/train/train_HAT_MAE_HR_Masking50.yml
+
+# general settings
+name: train_HAT_MAE_HR_Masking50 #from_ImageNet_pretrain
+model_type: HATMAEModel
+num_gpu: auto
+manual_seed: 0
+
+# dataset and data loader settings
+datasets:
+  train:
+    name: AID-train
+    type: ImageNetUnpairedDataset
+    dataroot: datasets/train/GT # datasets/AID-dataset/train/GT
+    io_backend:
+      type: disk
+
+    gt_size: 256 # image size for pre-training
+    use_hflip: true
+    use_rot: true
+
+    # data loader
+    use_shuffle: true
+    num_worker_per_gpu: 8
+    batch_size_per_gpu: 6
+    dataset_enlarge_ratio: 1
+    prefetch_mode: ~
+
+  val:
+    name: AID-val
+    type: ImageNetUnpairedDataset
+    dataroot: ./datasets/val/GT # ./datasets/AID-dataset/val/GT
+    io_backend:
+      type: disk
+    gt_size: 256
+    phase: 'val'
+
+# network structures
+network_g:
+  type: HAT_MAE
+  img_size: 256
+  patch_size: 4
+  in_chans: 3
+  embed_dim: 180
+  depths: [6, 6, 6, 6, 6, 6]
+  num_heads: [6, 6, 6, 6, 6, 6]
+  window_size: 16
+  compress_ratio: 3
+  squeeze_factor: 30
+  conv_scale: 0.01
+  overlap_ratio: 0.5
+  mlp_ratio: 2
+  resi_connection: '1conv'
+  # MAE specific parameters
+  mask_ratio: 0.5
+  decoder_embed_dim: 180
+  decoder_depth: 6
+  decoder_num_heads: 6
+
+# path
+path:
+  pretrain_network_g: ./experiments/pretrained_models/HAT_SRx4_ImageNet-pretrain.pth
+  param_key_g: 'params_ema'
+  strict_load_g: false
+  resume_state: ~
+
+# training settings
+train:
+  ema_decay: 0.999
+  optim_g:
+    type: Adam
+    lr: !!float 5e-5
+    weight_decay: 0
+    betas: [0.9, 0.99]
+
+  scheduler:
+    type: MultiStepLR
+    milestones: [125000, 200000, 225000, 240000] # [300000, 500000, 650000, 700000, 750000]
+    gamma: 0.5
+
+  total_iter: 250000 # 800000
+  warmup_iter: 20000
+
+  # losses
+  pixel_opt:
+    type: L1Loss
+    loss_weight: 1.0
+    reduction: mean
+
+# validation settings
+val:
+  val_freq: !!float 5e3 #1e4
+  save_img: true # Save reconstructed images for visualization
+  pbar: False
+
+  metrics:
+    mae_loss: # The key should match the metric_results in the model
+      type: calculate_mae_loss # This is a placeholder, the actual calculation is in the model
+      better: lower
+
+# logging settings
+logger:
+  print_freq: 100
+  save_checkpoint_freq: !!float 5e3 # 1e4
+  use_tb_logger: true
+  wandb:
+    project: ~
+    resume_id: ~
+
+# dist training settings
+dist_params:
+  backend: nccl
+  port: 29500
