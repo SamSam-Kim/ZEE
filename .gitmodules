@@ -1,3 +1,6 @@
 [submodule "submodule"]
 	path = submodule
 	url = https://github.com/caprisunlike/HAT-EAB.git
+[submodule "HAT-EAB"]
+	path = HAT-EAB
+	url = https://github.com/caprisunlike/HAT-EAB.git
